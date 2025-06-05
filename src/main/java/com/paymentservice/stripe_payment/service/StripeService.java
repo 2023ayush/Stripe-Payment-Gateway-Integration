@@ -1,8 +1,4 @@
 package com.paymentservice.stripe_payment.service;
-
-
-
-
 import com.paymentservice.stripe_payment.dto.ProductRequest;
 import com.paymentservice.stripe_payment.dto.StripeResponse;
 import com.stripe.Stripe;
@@ -16,19 +12,27 @@ import org.springframework.stereotype.Service;
 @Service
 public class StripeService {
 
+
     @Value("${stripe.secretKey}")
     private String secretKey;
 
-    public StripeResponse checkoutProducts(ProductRequest productRequest) {
 
+    //stripe -API
+    //-> productName , amount , quantity , currency
+    //-> return sessionId and url
+
+
+    public StripeResponse checkoutProducts(ProductRequest productRequest) {
+        // Set your secret key. Remember to switch to your live secret key in production!
         Stripe.apiKey = secretKey;
 
+        // Create a PaymentIntent with the order amount and currency
         SessionCreateParams.LineItem.PriceData.ProductData productData =
                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
                         .setName(productRequest.getName())
                         .build();
 
-
+        // Create new line item with the above product data and associated price
         SessionCreateParams.LineItem.PriceData priceData =
                 SessionCreateParams.LineItem.PriceData.builder()
                         .setCurrency(productRequest.getCurrency() != null ? productRequest.getCurrency() : "USD")
@@ -36,7 +40,7 @@ public class StripeService {
                         .setProductData(productData)
                         .build();
 
-
+        // Create new line item with the above price data
         SessionCreateParams.LineItem lineItem =
                 SessionCreateParams
                         .LineItem.builder()
@@ -44,28 +48,33 @@ public class StripeService {
                         .setPriceData(priceData)
                         .build();
 
-
+        // Create new session with the line items
+//            String p =
+//                    SessionCreateParams.builder()
+//                            .setMode(SessionCreateParams.Mode.PAYMENT).toString();
+//            System.out.println(p);
         SessionCreateParams params =
                 SessionCreateParams.builder()
                         .setMode(SessionCreateParams.Mode.PAYMENT)
-                        .setSuccessUrl("http://localhost:8080/success")
+                        .setSuccessUrl("http://localhost:8080/product/v1/success?session_id={CHECKOUT_SESSION_ID}")
                         .setCancelUrl("http://localhost:8080/cancel")
                         .addLineItem(lineItem)
                         .build();
 
+        // Create new session
         Session session = null;
         try {
             session = Session.create(params);
         } catch (StripeException e) {
-
+            //log the error
         }
 
-        return StripeResponse
-                .builder()
-                .status("SUCCESS")
-                .message("Payment session created ")
-                .sessionId(session.getId())
-                .sessionUrl(session.getUrl())
-                .build();
+        StripeResponse response = new StripeResponse();
+        response.setStatus("SUCCESS");
+        response.setMessage("Payment session created ");
+        response.setSessionId(session.getId());
+        response.setSessionUrl(session.getUrl());
+        return response;
+
     }
 }
